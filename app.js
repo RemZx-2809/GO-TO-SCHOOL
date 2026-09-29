@@ -109,6 +109,12 @@
     pillButtons: document.querySelectorAll('.pill-btn'),
     noteInput: document.getElementById('noteInput'),
     noteTags: document.querySelectorAll('.note-tag'),
+    checkBothWays: document.getElementById('checkBothWays'),
+
+    // Quick Repeat Bar
+    btnGenReturnFromDepart: document.getElementById('btnGenReturnFromDepart'),
+    btnCopyPrevDay: document.getElementById('btnCopyPrevDay'),
+    btnRepeatLast: document.getElementById('btnRepeatLast'),
 
     // Today list
     selectedDateEntriesCount: document.getElementById('selectedDateEntriesCount'),
@@ -135,6 +141,7 @@
     ratioDepartAmt: document.getElementById('ratioDepartAmt'),
     ratioReturnAmt: document.getElementById('ratioReturnAmt'),
     transportBreakdownList: document.getElementById('transportBreakdownList'),
+    btnSummaryExportPDF: document.getElementById('btnSummaryExportPDF'),
 
     // History Tab
     historyMonthHeading: document.getElementById('historyMonthHeading'),
@@ -143,6 +150,7 @@
     historyChips: document.querySelectorAll('.history-chip'),
     monthlyDailyLogContainer: document.getElementById('monthlyDailyLogContainer'),
     btnExportCSV: document.getElementById('btnExportCSV'),
+    btnExportPDF: document.getElementById('btnExportPDF'),
 
     // Modals
     editModal: document.getElementById('editModal'),
@@ -165,6 +173,22 @@
     btnExportJSON: document.getElementById('btnExportJSON'),
     fileImportJSON: document.getElementById('fileImportJSON'),
     btnClearAllData: document.getElementById('btnClearAllData'),
+
+    // PDF Report Modal
+    pdfReportModal: document.getElementById('pdfReportModal'),
+    btnClosePdfModal: document.getElementById('btnClosePdfModal'),
+    btnDownloadPDF: document.getElementById('btnDownloadPDF'),
+    btnPrintPDF: document.getElementById('btnPrintPDF'),
+    pdfPrintableContent: document.getElementById('pdfPrintableContent'),
+
+    // Duplicate Modal
+    duplicateModal: document.getElementById('duplicateModal'),
+    btnCloseDuplicateModal: document.getElementById('btnCloseDuplicateModal'),
+    duplicateItemPreview: document.getElementById('duplicateItemPreview'),
+    btnDupSameDaySameDir: document.getElementById('btnDupSameDaySameDir'),
+    btnDupSameDayOppositeDir: document.getElementById('btnDupSameDayOppositeDir'),
+    btnDupToToday: document.getElementById('btnDupToToday'),
+    dupTargetDateLabel: document.getElementById('dupTargetDateLabel'),
     
     // Toast
     toastContainer: document.getElementById('toastContainer')
@@ -568,6 +592,9 @@
           <div class="entry-right">
             <span class="entry-price">฿${Number(entry.amount).toLocaleString('th-TH')}</span>
             <div class="entry-actions">
+              <button type="button" class="action-btn-mini copy" onclick="window.gtsApp.openDuplicateModal('${entry.id}')" title="ทำซ้ำรายการนี้">
+                <i class="fa-solid fa-clone"></i>
+              </button>
               <button type="button" class="action-btn-mini edit" onclick="window.gtsApp.openEditModal('${entry.id}')" title="แก้ไข">
                 <i class="fa-solid fa-pen"></i>
               </button>
@@ -809,6 +836,9 @@
             <div class="entry-right">
               <span class="entry-price">฿${Number(entry.amount).toLocaleString('th-TH')}</span>
               <div class="entry-actions">
+                <button type="button" class="action-btn-mini copy" onclick="window.gtsApp.openDuplicateModal('${entry.id}')" title="ทำซ้ำรายการนี้">
+                  <i class="fa-solid fa-clone"></i>
+                </button>
                 <button type="button" class="action-btn-mini edit" onclick="window.gtsApp.openEditModal('${entry.id}')" title="แก้ไข">
                   <i class="fa-solid fa-pen"></i>
                 </button>
@@ -853,7 +883,55 @@
     const direction = directionInput ? directionInput.value : 'depart';
     const transportType = getSelectedTransportType();
     const note = el.noteInput.value.trim();
+    const isRoundTripBoth = el.checkBothWays && el.checkBothWays.checked;
 
+    if (isRoundTripBoth) {
+      // Create both Depart and Return entries in 1 click
+      const departEntry = {
+        id: 'gts_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+        day: Number(currentSelectedDay),
+        month: Number(currentSelectedMonth),
+        yearBE: Number(currentSelectedYearBE),
+        isoDate: formatDateISO(currentSelectedYearBE, currentSelectedMonth, currentSelectedDay),
+        direction: 'depart',
+        transportType,
+        amount,
+        note: note ? `${note} (ขาไป)` : '',
+        createdAt: new Date().toISOString()
+      };
+
+      const returnEntry = {
+        id: 'gts_' + (Date.now() + 1) + '_' + Math.random().toString(36).substring(2, 7),
+        day: Number(currentSelectedDay),
+        month: Number(currentSelectedMonth),
+        yearBE: Number(currentSelectedYearBE),
+        isoDate: formatDateISO(currentSelectedYearBE, currentSelectedMonth, currentSelectedDay),
+        direction: 'return',
+        transportType,
+        amount,
+        note: note ? `${note} (ขากลับ)` : '',
+        createdAt: new Date(Date.now() + 1).toISOString()
+      };
+
+      entries.unshift(returnEntry);
+      entries.unshift(departEntry);
+      saveEntriesToStorage();
+
+      localStorage.setItem(STORAGE_KEYS.LAST_TRANSPORT, transportType);
+
+      el.amountInput.value = '';
+      el.noteInput.value = '';
+
+      renderDayStrip();
+      syncUIWithSelectedDate();
+      renderSummaryTab();
+      renderHistoryTab();
+
+      showToast(`บันทึกแบบไป-กลับ (${transportType} ฿${amount} x2 เที่ยว) เรียบร้อย!`, 'success');
+      return;
+    }
+
+    // Single Entry
     const newEntry = {
       id: 'gts_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
       day: Number(currentSelectedDay),
@@ -883,6 +961,238 @@
     renderHistoryTab();
 
     showToast(`บันทึก ${transportType} ฿${amount} สำเร็จ!`, 'success');
+  }
+
+  // --- Quick Repeat & Duplication Operations ---
+  function generateReturnTripsFromDepart() {
+    const dayEntries = getSelectedDateEntries();
+    const departEntries = dayEntries.filter(e => e.direction === 'depart');
+
+    if (departEntries.length === 0) {
+      showToast('ยังไม่มีรายการขาไปของวันนี้สำหรับสร้างขากลับ', 'warning');
+      return;
+    }
+
+    // Invert sequence for realistic return commute
+    const reversedDepart = [...departEntries].reverse();
+    const newReturnEntries = reversedDepart.map((dep, index) => {
+      let returnNote = dep.note || '';
+      if (returnNote.includes('ต่อ 1')) returnNote = returnNote.replace('ต่อ 1', `ขากลับต่อ ${index + 1}`);
+      else if (returnNote.includes('เที่ยวไป')) returnNote = returnNote.replace('เที่ยวไป', 'เที่ยวกลับ');
+      else if (returnNote.includes('ขาไป')) returnNote = returnNote.replace('ขาไป', 'ขากลับ');
+      else if (!returnNote) returnNote = `ขากลับ`;
+
+      return {
+        id: 'gts_' + (Date.now() + index + 2) + '_' + Math.random().toString(36).substring(2, 7),
+        day: Number(currentSelectedDay),
+        month: Number(currentSelectedMonth),
+        yearBE: Number(currentSelectedYearBE),
+        isoDate: formatDateISO(currentSelectedYearBE, currentSelectedMonth, currentSelectedDay),
+        direction: 'return',
+        transportType: dep.transportType,
+        amount: Number(dep.amount),
+        note: returnNote,
+        createdAt: new Date(Date.now() + index + 2).toISOString()
+      };
+    });
+
+    newReturnEntries.forEach(entry => entries.unshift(entry));
+    saveEntriesToStorage();
+    renderDayStrip();
+    syncUIWithSelectedDate();
+    renderSummaryTab();
+    renderHistoryTab();
+
+    showToast(`สร้างรายการขากลับให้อัตโนมัติ ${newReturnEntries.length} รายการแล้ว!`, 'success');
+  }
+
+  function copyTripsFromPreviousDay() {
+    const curYear = Number(currentSelectedYearBE);
+    const curMonth = Number(currentSelectedMonth);
+    const curDay = Number(currentSelectedDay);
+
+    // Look for previous active day in the same month first
+    const earlierInMonth = entries
+      .filter(e => Number(e.yearBE) === curYear && Number(e.month) === curMonth && Number(e.day) < curDay)
+      .sort((a, b) => Number(b.day) - Number(a.day));
+
+    let sourceEntries = [];
+    let sourceDateText = '';
+
+    if (earlierInMonth.length > 0) {
+      const targetDay = earlierInMonth[0].day;
+      sourceEntries = earlierInMonth.filter(e => Number(e.day) === Number(targetDay));
+      sourceDateText = `วันที่ ${targetDay} ${THAI_MONTHS_FULL[curMonth - 1]}`;
+    } else {
+      // Look in any prior month/year
+      const sortedAll = [...entries].filter(e => {
+        const itemVal = Number(e.yearBE) * 10000 + Number(e.month) * 100 + Number(e.day);
+        const curVal = curYear * 10000 + curMonth * 100 + curDay;
+        return itemVal < curVal;
+      }).sort((a, b) => {
+        const valA = Number(a.yearBE) * 10000 + Number(a.month) * 100 + Number(a.day);
+        const valB = Number(b.yearBE) * 10000 + Number(b.month) * 100 + Number(b.day);
+        return valB - valA;
+      });
+
+      if (sortedAll.length > 0) {
+        const top = sortedAll[0];
+        sourceEntries = sortedAll.filter(e => 
+          Number(e.yearBE) === Number(top.yearBE) && 
+          Number(e.month) === Number(top.month) && 
+          Number(e.day) === Number(top.day)
+        );
+        sourceDateText = `วันที่ ${top.day} ${THAI_MONTHS_FULL[top.month - 1]} ${top.yearBE}`;
+      }
+    }
+
+    if (sourceEntries.length === 0) {
+      showToast('ไม่พบรายการเดินทางของวันก่อนหน้าที่จะคัดลอก', 'warning');
+      return;
+    }
+
+    if (!confirm(`ต้องการคัดลอกรายการเดินทาง ${sourceEntries.length} รายการจาก (${sourceDateText}) มาใส่วันนี้หรือไม่?`)) {
+      return;
+    }
+
+    const cloned = sourceEntries.map((src, idx) => ({
+      id: 'gts_' + (Date.now() + idx + 5) + '_' + Math.random().toString(36).substring(2, 7),
+      day: Number(currentSelectedDay),
+      month: Number(currentSelectedMonth),
+      yearBE: Number(currentSelectedYearBE),
+      isoDate: formatDateISO(currentSelectedYearBE, currentSelectedMonth, currentSelectedDay),
+      direction: src.direction,
+      transportType: src.transportType,
+      amount: Number(src.amount),
+      note: src.note || '',
+      createdAt: new Date(Date.now() + idx + 5).toISOString()
+    }));
+
+    cloned.forEach(item => entries.unshift(item));
+    saveEntriesToStorage();
+    renderDayStrip();
+    syncUIWithSelectedDate();
+    renderSummaryTab();
+    renderHistoryTab();
+
+    showToast(`คัดลอก ${cloned.length} รายการจาก ${sourceDateText} มาใส่วันนี้เรียบร้อย!`, 'success');
+  }
+
+  function repeatLastTrip() {
+    if (entries.length === 0) {
+      showToast('ยังไม่มีประวัติการเดินทางที่จะทำซ้ำ', 'warning');
+      return;
+    }
+
+    const last = entries[0];
+    const newEntry = {
+      id: 'gts_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+      day: Number(currentSelectedDay),
+      month: Number(currentSelectedMonth),
+      yearBE: Number(currentSelectedYearBE),
+      isoDate: formatDateISO(currentSelectedYearBE, currentSelectedMonth, currentSelectedDay),
+      direction: last.direction,
+      transportType: last.transportType,
+      amount: Number(last.amount),
+      note: last.note || '',
+      createdAt: new Date().toISOString()
+    };
+
+    entries.unshift(newEntry);
+    saveEntriesToStorage();
+    renderDayStrip();
+    syncUIWithSelectedDate();
+    renderSummaryTab();
+    renderHistoryTab();
+
+    showToast(`ทำซ้ำรายการ "${last.transportType}" ฿${last.amount} ในวันที่เลือกแล้ว!`, 'success');
+  }
+
+  // Duplicate Item Modal Logic
+  let activeDuplicateItem = null;
+
+  function openDuplicateModal(id) {
+    const item = entries.find(e => e.id === id);
+    if (!item) return;
+
+    activeDuplicateItem = item;
+    const isDepart = item.direction === 'depart';
+    const iconClass = getTransportIconClass(item.transportType);
+
+    el.dupTargetDateLabel.textContent = `${currentSelectedDay} ${THAI_MONTHS_FULL[currentSelectedMonth - 1]}`;
+
+    el.duplicateItemPreview.innerHTML = `
+      <div class="entry-item ${isDepart ? 'depart' : 'return'}" style="margin: 0; background: var(--bg-card);">
+        <div class="entry-left">
+          <div class="entry-type-icon"><i class="fa-solid ${iconClass}"></i></div>
+          <div class="entry-info">
+            <div class="entry-name">
+              <span>${escapeHtml(item.transportType)}</span>
+              <span class="dir-badge ${isDepart ? 'depart' : 'return'}">${isDepart ? 'ขาไป' : 'ขากลับ'}</span>
+            </div>
+            <span class="entry-note">วันที่ ${item.day}/${item.month}/${item.yearBE} • ${item.note ? escapeHtml(item.note) : 'ไม่มีหมายเหตุ'}</span>
+          </div>
+        </div>
+        <div class="entry-right">
+          <span class="entry-price">฿${Number(item.amount).toLocaleString('th-TH')}</span>
+        </div>
+      </div>
+    `;
+
+    el.duplicateModal.style.display = 'flex';
+  }
+
+  function closeDuplicateModal() {
+    el.duplicateModal.style.display = 'none';
+    activeDuplicateItem = null;
+  }
+
+  function handleDuplicateAction(type) {
+    if (!activeDuplicateItem) return;
+
+    let targetDay = activeDuplicateItem.day;
+    let targetMonth = activeDuplicateItem.month;
+    let targetYearBE = activeDuplicateItem.yearBE;
+    let targetDirection = activeDuplicateItem.direction;
+    let targetNote = activeDuplicateItem.note || '';
+
+    if (type === 'same-day-same-dir') {
+      // keep original day & direction
+    } else if (type === 'same-day-opposite-dir') {
+      targetDirection = targetDirection === 'depart' ? 'return' : 'depart';
+      if (targetNote.includes('ขาไป')) targetNote = targetNote.replace('ขาไป', 'ขากลับ');
+      else if (targetNote.includes('ขากลับ')) targetNote = targetNote.replace('ขากลับ', 'ขาไป');
+      else if (!targetNote) targetNote = targetDirection === 'depart' ? 'เที่ยวไป' : 'เที่ยวกลับ';
+    } else if (type === 'to-current-date') {
+      targetDay = Number(currentSelectedDay);
+      targetMonth = Number(currentSelectedMonth);
+      targetYearBE = Number(currentSelectedYearBE);
+    }
+
+    const newItem = {
+      id: 'gts_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+      day: Number(targetDay),
+      month: Number(targetMonth),
+      yearBE: Number(targetYearBE),
+      isoDate: formatDateISO(targetYearBE, targetMonth, targetDay),
+      direction: targetDirection,
+      transportType: activeDuplicateItem.transportType,
+      amount: Number(activeDuplicateItem.amount),
+      note: targetNote,
+      createdAt: new Date().toISOString()
+    };
+
+    entries.unshift(newItem);
+    saveEntriesToStorage();
+    closeDuplicateModal();
+
+    renderDayStrip();
+    syncUIWithSelectedDate();
+    renderSummaryTab();
+    renderHistoryTab();
+
+    const dirText = targetDirection === 'depart' ? 'ขาไป' : 'ขากลับ';
+    showToast(`ทำซ้ำรายการ (${newItem.transportType} ${dirText} ฿${newItem.amount}) สำเร็จ!`, 'success');
   }
 
   // --- Edit Modal Operations ---
@@ -973,6 +1283,198 @@
     renderHistoryTab();
 
     showToast('ลบรายการเรียบร้อยแล้ว', 'info');
+  }
+
+  // --- PDF Export & Printable Document Rendering ---
+  function openPdfReportModal() {
+    const selectedMonth = Number(el.summaryMonthSelect.value);
+    const selectedYearBE = Number(el.summaryYearSelect.value);
+
+    renderPdfReportContent(selectedMonth, selectedYearBE);
+    el.pdfReportModal.style.display = 'flex';
+  }
+
+  function closePdfReportModal() {
+    el.pdfReportModal.style.display = 'none';
+  }
+
+  function renderPdfReportContent(month, yearBE) {
+    const monthEntries = entries
+      .filter(e => Number(e.month) === month && Number(e.yearBE) === yearBE)
+      .sort((a, b) => Number(a.day) - Number(b.day));
+
+    let grandTotal = 0;
+    let departTotal = 0;
+    let departCount = 0;
+    let returnTotal = 0;
+    let returnCount = 0;
+    const uniqueDays = new Set();
+    const typeTotals = {};
+
+    monthEntries.forEach(entry => {
+      const amt = Number(entry.amount || 0);
+      grandTotal += amt;
+      uniqueDays.add(entry.day);
+      if (entry.direction === 'depart') {
+        departTotal += amt;
+        departCount++;
+      } else {
+        returnTotal += amt;
+        returnCount++;
+      }
+      const typeKey = entry.transportType || 'อื่นๆ';
+      typeTotals[typeKey] = (typeTotals[typeKey] || 0) + amt;
+    });
+
+    const activeDaysCount = uniqueDays.size;
+    const avgPerDay = activeDaysCount > 0 ? Math.round(grandTotal / activeDaysCount) : 0;
+    const monthName = THAI_MONTHS_FULL[month - 1];
+    const nowStr = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+    let breakdownRows = '';
+    const sortedTypes = Object.entries(typeTotals).sort((a, b) => b[1] - a[1]);
+    sortedTypes.forEach(([type, amt]) => {
+      const pct = grandTotal > 0 ? ((amt / grandTotal) * 100).toFixed(1) : 0;
+      breakdownRows += `
+        <tr>
+          <td>${escapeHtml(type)}</td>
+          <td class="col-right">฿${amt.toLocaleString('th-TH')}</td>
+          <td class="col-right">${pct}%</td>
+        </tr>
+      `;
+    });
+
+    let itemsRows = '';
+    if (monthEntries.length === 0) {
+      itemsRows = `<tr><td colspan="5" style="text-align: center; color: #9ca3af; padding: 18px;">ไม่มีรายการบันทึกในเดือนนี้</td></tr>`;
+    } else {
+      monthEntries.forEach((e) => {
+        const isDepart = e.direction === 'depart';
+        const dayOfWeek = getDayOfWeekShort(e.yearBE, e.month, e.day);
+        itemsRows += `
+          <tr>
+            <td>${e.day} ${monthName} (${dayOfWeek})</td>
+            <td><span class="${isDepart ? 'pdf-badge-depart' : 'pdf-badge-return'}">${isDepart ? 'ขาไป' : 'ขากลับ'}</span></td>
+            <td>${escapeHtml(e.transportType)}</td>
+            <td>${e.note ? escapeHtml(e.note) : '-'}</td>
+            <td class="col-right">฿${Number(e.amount).toLocaleString('th-TH')}</td>
+          </tr>
+        `;
+      });
+    }
+
+    el.pdfPrintableContent.innerHTML = `
+      <div class="pdf-doc-header">
+        <div class="pdf-doc-brand">
+          <div class="pdf-doc-logo"><i class="fa-solid fa-graduation-cap"></i></div>
+          <div>
+            <h2>GoToSchool Travel Report</h2>
+            <p>รายงานสรุปค่าใช้จ่ายการเดินทางไปมหาวิทยาลัยรายวัน</p>
+          </div>
+        </div>
+        <div class="pdf-doc-meta">
+          <div class="pdf-doc-month">${monthName} ${yearBE}</div>
+          <div class="pdf-doc-generated">พิมพ์เมื่อ: ${nowStr}</div>
+        </div>
+      </div>
+
+      <div class="pdf-stats-row">
+        <div class="pdf-stat-card highlight">
+          <span class="pdf-stat-label">ยอดรวมทั้งเดือน</span>
+          <span class="pdf-stat-value">฿${grandTotal.toLocaleString('th-TH')}</span>
+          <span class="pdf-stat-sub">${monthEntries.length} รายการ</span>
+        </div>
+        <div class="pdf-stat-card">
+          <span class="pdf-stat-label">รวมขาไป (มหา'ลัย)</span>
+          <span class="pdf-stat-value">฿${departTotal.toLocaleString('th-TH')}</span>
+          <span class="pdf-stat-sub">${departCount} เที่ยว</span>
+        </div>
+        <div class="pdf-stat-card">
+          <span class="pdf-stat-label">รวมขากลับ (บ้าน/หอ)</span>
+          <span class="pdf-stat-value">฿${returnTotal.toLocaleString('th-TH')}</span>
+          <span class="pdf-stat-sub">${returnCount} เที่ยว</span>
+        </div>
+        <div class="pdf-stat-card">
+          <span class="pdf-stat-label">วันเดินทาง / เฉลี่ย</span>
+          <span class="pdf-stat-value">${activeDaysCount} วัน</span>
+          <span class="pdf-stat-sub">เฉลี่ย ฿${avgPerDay.toLocaleString('th-TH')}/วัน</span>
+        </div>
+      </div>
+
+      <div class="pdf-section-title"><i class="fa-solid fa-chart-pie" style="color: #4f46e5;"></i> สรุปตามประเภทการเดินทาง</div>
+      <table class="pdf-table">
+        <thead>
+          <tr>
+            <th>ประเภทการเดินทาง</th>
+            <th class="col-right">รวมเงิน (บาท)</th>
+            <th class="col-right">สัดส่วน (%)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${breakdownRows || '<tr><td colspan="3" style="text-align: center;">ไม่มีข้อมูล</td></tr>'}
+        </tbody>
+      </table>
+
+      <div class="pdf-section-title" style="margin-top: 18px;"><i class="fa-solid fa-list-ol" style="color: #4f46e5;"></i> รายละเอียดการเดินทางรายวัน (${monthEntries.length} รายการ)</div>
+      <table class="pdf-table">
+        <thead>
+          <tr>
+            <th style="width: 22%;">วันที่</th>
+            <th style="width: 14%;">ทิศทาง</th>
+            <th style="width: 26%;">ประเภทรถ</th>
+            <th style="width: 24%;">หมายเหตุ</th>
+            <th style="width: 14%;" class="col-right">ค่าโดยสาร</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${itemsRows}
+          <tr class="pdf-total-row">
+            <td colspan="4" style="text-align: right;"><strong>ยอดรวมสุทธิทั้งเดือน:</strong></td>
+            <td class="col-right"><strong>฿${grandTotal.toLocaleString('th-TH')}</strong></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="pdf-doc-footer">
+        <span>GoToSchool App • บันทึกค่าเดินทางไปมหาวิทยาลัย</span>
+        <span>หน้า 1 / 1</span>
+      </div>
+    `;
+  }
+
+  function downloadPDF() {
+    const selectedMonth = Number(el.summaryMonthSelect.value);
+    const selectedYearBE = Number(el.summaryYearSelect.value);
+    const monthName = THAI_MONTHS_FULL[selectedMonth - 1];
+
+    const element = document.getElementById('pdfPrintableContent');
+    if (!element) return;
+
+    if (typeof html2pdf === 'undefined') {
+      window.print();
+      return;
+    }
+
+    showToast('กำลังประมวลผลและสร้างไฟล์ PDF...', 'info');
+
+    const opt = {
+      margin: [6, 6, 6, 6],
+      filename: `GoToSchool_รายงานค่าเดินทาง_${monthName}_${selectedYearBE}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, letterRendering: true, logging: false },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    html2pdf().set(opt).from(element).save().then(() => {
+      showToast('ดาวน์โหลดไฟล์ PDF สำเร็จแล้ว!', 'success');
+    }).catch(err => {
+      console.error('PDF generation error:', err);
+      window.print();
+    });
+  }
+
+  function printPDF() {
+    window.print();
   }
 
   // --- Export & Import Operations ---
@@ -1259,6 +1761,17 @@
     // Form Submit
     el.fareForm.addEventListener('submit', handleFormSubmit);
 
+    // Fast Repeat Bar Action Listeners
+    if (el.btnGenReturnFromDepart) {
+      el.btnGenReturnFromDepart.addEventListener('click', generateReturnTripsFromDepart);
+    }
+    if (el.btnCopyPrevDay) {
+      el.btnCopyPrevDay.addEventListener('click', copyTripsFromPreviousDay);
+    }
+    if (el.btnRepeatLast) {
+      el.btnRepeatLast.addEventListener('click', repeatLastTrip);
+    }
+
     // Summary Month / Year Selector Changes
     el.summaryMonthSelect.addEventListener('change', () => {
       renderSummaryTab();
@@ -1311,9 +1824,23 @@
       renderHistoryTab();
     });
 
+    // Exports
     el.btnExportCSV.addEventListener('click', exportCSV);
+    if (el.btnExportPDF) el.btnExportPDF.addEventListener('click', openPdfReportModal);
+    if (el.btnSummaryExportPDF) el.btnSummaryExportPDF.addEventListener('click', openPdfReportModal);
 
-    // Modals
+    // PDF Modal Controls
+    if (el.btnClosePdfModal) el.btnClosePdfModal.addEventListener('click', closePdfReportModal);
+    if (el.btnDownloadPDF) el.btnDownloadPDF.addEventListener('click', downloadPDF);
+    if (el.btnPrintPDF) el.btnPrintPDF.addEventListener('click', printPDF);
+
+    // Duplicate Modal Controls
+    if (el.btnCloseDuplicateModal) el.btnCloseDuplicateModal.addEventListener('click', closeDuplicateModal);
+    if (el.btnDupSameDaySameDir) el.btnDupSameDaySameDir.addEventListener('click', () => handleDuplicateAction('same-day-same-dir'));
+    if (el.btnDupSameDayOppositeDir) el.btnDupSameDayOppositeDir.addEventListener('click', () => handleDuplicateAction('same-day-opposite-dir'));
+    if (el.btnDupToToday) el.btnDupToToday.addEventListener('click', () => handleDuplicateAction('to-current-date'));
+
+    // Modals Edit & Backup
     el.btnCancelEdit.addEventListener('click', closeEditModal);
     el.btnCancelEdit2.addEventListener('click', closeEditModal);
     el.editFareForm.addEventListener('submit', handleEditFormSubmit);
@@ -1329,13 +1856,22 @@
       if (e.target === el.editModal) closeEditModal();
       if (e.target === el.backupModal) el.backupModal.style.display = 'none';
       if (e.target === el.calendarSheetModal) closeCalendarSheet();
+      if (e.target === el.pdfReportModal) closePdfReportModal();
+      if (e.target === el.duplicateModal) closeDuplicateModal();
     });
   }
 
   // Expose global methods for inline HTML onclick handlers
   window.gtsApp = {
     openEditModal,
-    deleteEntry
+    deleteEntry,
+    openDuplicateModal,
+    openPdfReportModal,
+    downloadPDF,
+    printPDF,
+    generateReturnTripsFromDepart,
+    copyTripsFromPreviousDay,
+    repeatLastTrip
   };
 
   // Launch on DOM ready

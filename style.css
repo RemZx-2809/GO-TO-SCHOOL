@@ -1958,3 +1958,468 @@ body {
   font-size: 0.75rem;
   color: var(--text-light);
 }
+
+/* =========================================================
+   Round-Trip (ไป-กลับ) Quick Toggle & Fast Duplicate Bar
+   ========================================================= */
+.round-trip-section {
+  margin-top: 4px;
+}
+
+.round-trip-toggle {
+  display: block;
+  cursor: pointer;
+  user-select: none;
+}
+
+.round-trip-toggle input {
+  display: none;
+}
+
+.round-trip-custom-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  border-radius: var(--radius-md);
+  border: 1.5px dashed var(--border-color-focus);
+  background: var(--bg-card-subtle);
+  transition: all var(--transition-fast);
+}
+
+.round-trip-toggle input:checked + .round-trip-custom-box {
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.08), rgba(236, 72, 153, 0.08));
+  border: 1.5px solid var(--primary);
+  box-shadow: 0 3px 10px var(--primary-glow);
+}
+
+.rt-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.round-trip-toggle input:checked + .round-trip-custom-box .rt-icon {
+  background: linear-gradient(135deg, var(--depart-color), var(--return-color));
+  color: #fff;
+  transform: rotate(180deg);
+}
+
+.rt-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.rt-title {
+  font-size: 0.86rem;
+  color: var(--text-main);
+}
+
+.round-trip-toggle input:checked + .round-trip-custom-box .rt-title {
+  color: var(--primary);
+}
+
+.rt-desc {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+/* Quick Repeat & Duplicate Action Bar */
+.quick-repeat-card {
+  padding: 12px 14px;
+  background: var(--bg-card);
+  margin-top: 14px;
+}
+
+.quick-repeat-header {
+  margin-bottom: 10px;
+}
+
+.quick-repeat-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.quick-repeat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.btn-repeat-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 10px 6px;
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-main);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-repeat-action:hover {
+  background: var(--primary-light);
+  border-color: var(--primary);
+  color: var(--primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px var(--primary-glow);
+}
+
+.repeat-icon-wrap {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: var(--bg-card);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  margin-bottom: 6px;
+  transition: all var(--transition-fast);
+}
+
+.btn-repeat-action:hover .repeat-icon-wrap {
+  background: var(--primary);
+  color: #fff;
+}
+
+.repeat-text-wrap strong {
+  display: block;
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.repeat-text-wrap small {
+  display: block;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* Action Button Copy styling */
+.action-btn-mini.copy:hover {
+  background: var(--primary-light);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.btn-pdf-action {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: var(--danger);
+}
+
+.btn-pdf-action:hover {
+  background: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+}
+
+/* =========================================================
+   PDF Report Preview & Printable Modal
+   ========================================================= */
+.pdf-preview-modal-card {
+  max-width: 680px;
+  width: 95%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.pdf-modal-body {
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.pdf-modal-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px;
+  background: var(--bg-card-subtle);
+  border-radius: var(--radius-md);
+  margin-bottom: 14px;
+}
+
+.pdf-toolbar-hint {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pdf-toolbar-btns {
+  display: flex;
+  gap: 8px;
+}
+
+.pdf-sheet-scroll-container {
+  max-height: 58vh;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: #525659;
+  padding: 14px;
+}
+
+/* Printable Clean A4 Document */
+.pdf-printable-document {
+  background: #ffffff !important;
+  color: #111827 !important;
+  padding: 28px 24px;
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+  font-family: 'Prompt', 'Outfit', sans-serif !important;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+.pdf-doc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid #4f46e5;
+  padding-bottom: 14px;
+  margin-bottom: 16px;
+}
+
+.pdf-doc-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pdf-doc-logo {
+  width: 38px;
+  height: 38px;
+  background: #4f46e5;
+  color: #fff;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+
+.pdf-doc-brand h2 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #1e1b4b;
+  margin: 0;
+  line-height: 1.1;
+}
+
+.pdf-doc-brand p {
+  font-size: 0.76rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+.pdf-doc-meta {
+  text-align: right;
+}
+
+.pdf-doc-month {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #4f46e5;
+}
+
+.pdf-doc-generated {
+  font-size: 0.72rem;
+  color: #9ca3af;
+}
+
+/* PDF Summary Stats Box */
+.pdf-stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.pdf-stat-card {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 10px 12px;
+  text-align: center;
+}
+
+.pdf-stat-card.highlight {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+}
+
+.pdf-stat-label {
+  font-size: 0.72rem;
+  color: #6b7280;
+  display: block;
+}
+
+.pdf-stat-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #111827;
+  font-family: 'Outfit', 'Prompt', sans-serif;
+  margin-top: 2px;
+  display: block;
+}
+
+.pdf-stat-card.highlight .pdf-stat-value {
+  color: #4f46e5;
+}
+
+.pdf-stat-sub {
+  font-size: 0.68rem;
+  color: #9ca3af;
+}
+
+/* PDF Tables */
+.pdf-section-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 14px 0 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pdf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+  margin-bottom: 14px;
+}
+
+.pdf-table th {
+  background: #f3f4f6;
+  color: #374151;
+  font-weight: 600;
+  text-align: left;
+  padding: 7px 10px;
+  border-bottom: 1.5px solid #d1d5db;
+  border-top: 1px solid #e5e7eb;
+}
+
+.pdf-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid #f3f4f6;
+  color: #1f2937;
+}
+
+.pdf-table tr:nth-child(even) td {
+  background: #fafafa;
+}
+
+.pdf-table .col-right {
+  text-align: right;
+  font-family: 'Outfit', 'Prompt', sans-serif;
+  font-weight: 600;
+}
+
+.pdf-badge-depart {
+  display: inline-block;
+  background: #eff6ff;
+  color: #2563eb;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.pdf-badge-return {
+  display: inline-block;
+  background: #fdf2f8;
+  color: #db2777;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.pdf-total-row td {
+  background: #eef2ff !important;
+  font-weight: 700;
+  color: #1e1b4b;
+  border-top: 2px solid #6366f1;
+  font-size: 0.86rem;
+}
+
+.pdf-doc-footer {
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px dashed #d1d5db;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.72rem;
+  color: #9ca3af;
+}
+
+/* Duplicate Modal styling */
+.duplicate-modal-card {
+  max-width: 440px;
+}
+
+.duplicate-item-preview {
+  padding: 10px 14px;
+  background: var(--bg-card-subtle);
+  border-radius: var(--radius-md);
+  margin-bottom: 14px;
+  border: 1px solid var(--border-color);
+}
+
+.duplicate-options-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* =========================================================
+   Print Styles for PDF Direct Print / Save as PDF
+   ========================================================= */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  
+  #pdfPrintableContent, #pdfPrintableContent * {
+    visibility: visible;
+  }
+  
+  #pdfPrintableContent {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+  
+  .modal-backdrop, .app-header, .nav-tabs, .main-content, .app-footer, .toast-container {
+    display: none !important;
+  }
+}
+

@@ -15,6 +15,9 @@
   <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   
+  <!-- html2pdf.js for Client-Side PDF Generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -276,12 +279,56 @@
               </div>
             </div>
 
+            <!-- Round-Trip (ไป-กลับ) Quick Toggle -->
+            <div class="form-section round-trip-section">
+              <label class="round-trip-toggle" for="checkBothWays">
+                <input type="checkbox" id="checkBothWays">
+                <span class="round-trip-custom-box">
+                  <span class="rt-icon"><i class="fa-solid fa-arrows-split-up-and-left"></i></span>
+                  <span class="rt-text">
+                    <strong class="rt-title">บันทึกทั้งขาไป + ขากลับพร้อมกัน (ไป-กลับ)</strong>
+                    <span class="rt-desc">กดครั้งเดียว บันทึกเที่ยวไปและเที่ยวกลับให้ทันที ไม่ต้องกดซ้ำ</span>
+                  </span>
+                </span>
+              </label>
+            </div>
+
             <!-- Submit Button -->
             <button type="submit" id="btnSubmitFare" class="btn-primary-block">
               <i class="fa-solid fa-plus-circle"></i>
               <span>บันทึกรายการนี้</span>
             </button>
           </form>
+        </div>
+
+        <!-- Quick Repeat & Duplicate Action Bar -->
+        <div class="card quick-repeat-card">
+          <div class="quick-repeat-header">
+            <span class="quick-repeat-title"><i class="fa-solid fa-wand-magic-sparkles text-primary"></i> ตัวช่วยทำซ้ำลดการกดหลายรอบ</span>
+          </div>
+          <div class="quick-repeat-grid">
+            <button type="button" class="btn-repeat-action" id="btnGenReturnFromDepart" title="สร้างขากลับจากขาไปทั้งหมดของวันนี้อัตโนมัติ">
+              <div class="repeat-icon-wrap"><i class="fa-solid fa-arrows-rotate"></i></div>
+              <div class="repeat-text-wrap">
+                <strong>สร้างขากลับจากขาไป</strong>
+                <small>คัดลอกขาไปเป็นขากลับทันที</small>
+              </div>
+            </button>
+            <button type="button" class="btn-repeat-action" id="btnCopyPrevDay" title="คัดลอกรายการเดินทางจากวันก่อนหน้ามาใส่วันนี้">
+              <div class="repeat-icon-wrap"><i class="fa-solid fa-paste"></i></div>
+              <div class="repeat-text-wrap">
+                <strong>คัดลอกจากวันก่อน</strong>
+                <small>ดึงรายการวันที่แล้วมาใส่วันนี้</small>
+              </div>
+            </button>
+            <button type="button" class="btn-repeat-action" id="btnRepeatLast" title="ทำซ้ำรายการล่าสุดที่เคยบันทึก">
+              <div class="repeat-icon-wrap"><i class="fa-solid fa-bolt"></i></div>
+              <div class="repeat-text-wrap">
+                <strong>ทำซ้ำรายการล่าสุด</strong>
+                <small>ใส่รายการล่าสุดอีก 1 ครั้ง</small>
+              </div>
+            </button>
+          </div>
         </div>
 
         <!-- Today's Entries Section -->
@@ -408,6 +455,9 @@
               <i class="fa-solid fa-chart-simple header-icon"></i>
               <span class="card-title">แยกตามประเภทการเดินทาง</span>
             </div>
+            <button type="button" class="btn-pill-action" id="btnSummaryExportPDF" title="ส่งออกรายงาน PDF">
+              <i class="fa-solid fa-file-pdf"></i> สรุป PDF
+            </button>
           </div>
           <div id="transportBreakdownList" class="breakdown-list">
             <!-- Populated by JS -->
@@ -423,6 +473,9 @@
             <span id="historyTotalSubheading" class="history-total-sub">ยอดรวม 0 บาท</span>
           </div>
           <div class="history-actions">
+            <button type="button" class="btn-outline-sm btn-pdf-action" id="btnExportPDF" title="ดาวน์โหลดเป็นไฟล์เอกสาร PDF">
+              <i class="fa-solid fa-file-pdf"></i> ส่งออก PDF
+            </button>
             <button type="button" class="btn-outline-sm" id="btnExportCSV" title="ดาวน์โหลดเป็นไฟล์ Excel/CSV">
               <i class="fa-solid fa-file-csv"></i> ส่งออก CSV
             </button>
@@ -587,6 +640,79 @@
         <div class="cal-sheet-footer">
           <button type="button" class="btn-secondary w-full" id="btnCalSheetToday">
             <i class="fa-solid fa-clock-rotate-left"></i> เลือกวันนี้
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PDF Report Preview & Download Modal -->
+  <div class="modal-backdrop" id="pdfReportModal" style="display: none;">
+    <div class="modal-card pdf-preview-modal-card">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-file-pdf text-danger"></i> รายงานสรุปค่าเดินทาง (PDF)</h3>
+        <button type="button" class="modal-close-btn" id="btnClosePdfModal">&times;</button>
+      </div>
+      <div class="pdf-modal-body">
+        <div class="pdf-modal-toolbar">
+          <div class="pdf-toolbar-hint">
+            <i class="fa-solid fa-circle-check text-success"></i> สามารถดาวน์โหลดเป็นไฟล์ .PDF หรือสั่งพิมพ์รายงานได้ทันที
+          </div>
+          <div class="pdf-toolbar-btns">
+            <button type="button" class="btn-primary" id="btnDownloadPDF">
+              <i class="fa-solid fa-file-arrow-down"></i> ดาวน์โหลด PDF (.pdf)
+            </button>
+            <button type="button" class="btn-secondary" id="btnPrintPDF">
+              <i class="fa-solid fa-print"></i> พิมพ์ / Save to PDF
+            </button>
+          </div>
+        </div>
+
+        <!-- Printable Document Canvas Sheet -->
+        <div class="pdf-sheet-scroll-container">
+          <div id="pdfPrintableContent" class="pdf-printable-document">
+            <!-- Dynamically populated by JS with rich styling -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Duplicate Option Quick Modal / Action Sheet -->
+  <div class="modal-backdrop" id="duplicateModal" style="display: none;">
+    <div class="modal-card duplicate-modal-card">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-clone text-primary"></i> เลือกวิธีทำซ้ำรายการ</h3>
+        <button type="button" class="modal-close-btn" id="btnCloseDuplicateModal">&times;</button>
+      </div>
+      <div class="duplicate-modal-body">
+        <div class="duplicate-item-preview" id="duplicateItemPreview">
+          <!-- Populated by JS -->
+        </div>
+
+        <div class="duplicate-options-grid">
+          <button type="button" class="btn-action-card" id="btnDupSameDaySameDir">
+            <i class="fa-solid fa-copy"></i>
+            <div>
+              <strong>ทำซ้ำในวันเดียวกัน (ทิศทางเดิม)</strong>
+              <small>คัดลอกรายการนี้เพิ่มอีก 1 ต่อในวันที่เดิม</small>
+            </div>
+          </button>
+
+          <button type="button" class="btn-action-card" id="btnDupSameDayOppositeDir">
+            <i class="fa-solid fa-arrows-left-right"></i>
+            <div>
+              <strong>ทำซ้ำโดยสลับเป็นขากลับ / ขาไป</strong>
+              <small>คัดลอกรายการเดิมแต่เปลี่ยนทิศทางอัตโนมัติ</small>
+            </div>
+          </button>
+
+          <button type="button" class="btn-action-card" id="btnDupToToday">
+            <i class="fa-solid fa-calendar-plus"></i>
+            <div>
+              <strong>ทำซ้ำไปใส่วันที่เลือกปัจจุบัน (<span id="dupTargetDateLabel">--</span>)</strong>
+              <small>คัดลอกรายการนี้ไปบันทึกในวันที่กำลังเปิดอยู่</small>
+            </div>
           </button>
         </div>
       </div>
