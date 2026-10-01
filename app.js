@@ -19,7 +19,8 @@
     STICKY_MONTH: 'gts_sticky_month',
     STICKY_YEAR_BE: 'gts_sticky_year_be',
     LAST_TRANSPORT: 'gts_last_transport',
-    THEME: 'gts_theme_pref'
+    THEME: 'gts_theme_pref',
+    USER_PROFILE: 'gts_user_profile'
   };
 
   // Month names in Thai
@@ -180,6 +181,29 @@
     btnDownloadPDF: document.getElementById('btnDownloadPDF'),
     btnPrintPDF: document.getElementById('btnPrintPDF'),
     pdfPrintableContent: document.getElementById('pdfPrintableContent'),
+    pdfAuthorNameInput: document.getElementById('pdfAuthorNameInput'),
+    pdfAuthorSubInput: document.getElementById('pdfAuthorSubInput'),
+    btnSavePdfAuthor: document.getElementById('btnSavePdfAuthor'),
+
+    // User Profile Modal
+    btnUserProfile: document.getElementById('btnUserProfile'),
+    userProfileModal: document.getElementById('userProfileModal'),
+    btnCloseUserProfile: document.getElementById('btnCloseUserProfile'),
+    btnCancelUserProfile: document.getElementById('btnCancelUserProfile'),
+    userProfileForm: document.getElementById('userProfileForm'),
+    profileUserNameInput: document.getElementById('profileUserNameInput'),
+    profileUserSubInput: document.getElementById('profileUserSubInput'),
+
+    // Clear Month Controls
+    btnClearMonthSummary: document.getElementById('btnClearMonthSummary'),
+    btnClearMonthHistory: document.getElementById('btnClearMonthHistory'),
+    clearMonthConfirmModal: document.getElementById('clearMonthConfirmModal'),
+    btnCloseClearMonthModal: document.getElementById('btnCloseClearMonthModal'),
+    btnCancelClearMonth: document.getElementById('btnCancelClearMonth'),
+    btnConfirmDeleteMonth: document.getElementById('btnConfirmDeleteMonth'),
+    clearMonthTargetName: document.getElementById('clearMonthTargetName'),
+    clearMonthTargetCount: document.getElementById('clearMonthTargetCount'),
+    clearMonthTargetTotal: document.getElementById('clearMonthTargetTotal'),
 
     // Duplicate Modal
     duplicateModal: document.getElementById('duplicateModal'),
@@ -1011,7 +1035,7 @@
     const curMonth = Number(currentSelectedMonth);
     const curDay = Number(currentSelectedDay);
 
-    // Look for previous active day in the same month first
+    // 1. Look for previous active day in the same month first (day < curDay)
     const earlierInMonth = entries
       .filter(e => Number(e.yearBE) === curYear && Number(e.month) === curMonth && Number(e.day) < curDay)
       .sort((a, b) => Number(b.day) - Number(a.day));
@@ -1024,8 +1048,8 @@
       sourceEntries = earlierInMonth.filter(e => Number(e.day) === Number(targetDay));
       sourceDateText = `วันที่ ${targetDay} ${THAI_MONTHS_FULL[curMonth - 1]}`;
     } else {
-      // Look in any prior month/year
-      const sortedAll = [...entries].filter(e => {
+      // 2. Look in any prior month/year (itemVal < curVal)
+      const sortedPrior = [...entries].filter(e => {
         const itemVal = Number(e.yearBE) * 10000 + Number(e.month) * 100 + Number(e.day);
         const curVal = curYear * 10000 + curMonth * 100 + curDay;
         return itemVal < curVal;
@@ -1035,23 +1059,47 @@
         return valB - valA;
       });
 
-      if (sortedAll.length > 0) {
-        const top = sortedAll[0];
-        sourceEntries = sortedAll.filter(e => 
+      if (sortedPrior.length > 0) {
+        const top = sortedPrior[0];
+        sourceEntries = sortedPrior.filter(e => 
           Number(e.yearBE) === Number(top.yearBE) && 
           Number(e.month) === Number(top.month) && 
           Number(e.day) === Number(top.day)
         );
         sourceDateText = `วันที่ ${top.day} ${THAI_MONTHS_FULL[top.month - 1]} ${top.yearBE}`;
+      } else {
+        // 3. Fallback: Find the most recent active day across the entire history (excluding current day)
+        const otherDays = [...entries].filter(e => 
+          !(Number(e.yearBE) === curYear && Number(e.month) === curMonth && Number(e.day) === curDay)
+        ).sort((a, b) => {
+          const valA = Number(a.yearBE) * 10000 + Number(a.month) * 100 + Number(a.day);
+          const valB = Number(b.yearBE) * 10000 + Number(b.month) * 100 + Number(b.day);
+          return valB - valA;
+        });
+
+        if (otherDays.length > 0) {
+          const top = otherDays[0];
+          sourceEntries = otherDays.filter(e => 
+            Number(e.yearBE) === Number(top.yearBE) && 
+            Number(e.month) === Number(top.month) && 
+            Number(e.day) === Number(top.day)
+          );
+          sourceDateText = `วันที่ ${top.day} ${THAI_MONTHS_FULL[top.month - 1]} ${top.yearBE}`;
+        } else if (entries.length > 0) {
+          // 4. If all entries are on current day, duplicate them
+          const top = entries[0];
+          sourceEntries = entries.filter(e => 
+            Number(e.yearBE) === Number(top.yearBE) && 
+            Number(e.month) === Number(top.month) && 
+            Number(e.day) === Number(top.day)
+          );
+          sourceDateText = `วันที่ ${top.day} ${THAI_MONTHS_FULL[top.month - 1]}`;
+        }
       }
     }
 
     if (sourceEntries.length === 0) {
-      showToast('ไม่พบรายการเดินทางของวันก่อนหน้าที่จะคัดลอก', 'warning');
-      return;
-    }
-
-    if (!confirm(`ต้องการคัดลอกรายการเดินทาง ${sourceEntries.length} รายการจาก (${sourceDateText}) มาใส่วันนี้หรือไม่?`)) {
+      showToast('ยังไม่มีประวัติการเดินทางที่จะคัดลอก กรุณาบันทึกรายการก่อนหน้าอย่างน้อย 1 รายการ', 'warning');
       return;
     }
 
@@ -1075,7 +1123,7 @@
     renderSummaryTab();
     renderHistoryTab();
 
-    showToast(`คัดลอก ${cloned.length} รายการจาก ${sourceDateText} มาใส่วันนี้เรียบร้อย!`, 'success');
+    showToast(`คัดลอก ${cloned.length} รายการจาก (${sourceDateText}) มาใส่วันนี้เรียบร้อยแล้ว!`, 'success');
   }
 
   function repeatLastTrip() {
@@ -1290,6 +1338,10 @@
     const selectedMonth = Number(el.summaryMonthSelect.value);
     const selectedYearBE = Number(el.summaryYearSelect.value);
 
+    const profile = loadUserProfile();
+    if (el.pdfAuthorNameInput) el.pdfAuthorNameInput.value = profile.name || '';
+    if (el.pdfAuthorSubInput) el.pdfAuthorSubInput.value = profile.sub || '';
+
     renderPdfReportContent(selectedMonth, selectedYearBE);
     el.pdfReportModal.style.display = 'flex';
   }
@@ -1363,6 +1415,10 @@
       });
     }
 
+    const userProfile = loadUserProfile();
+    const userName = userProfile.name ? userProfile.name.trim() : '';
+    const userSub = userProfile.sub ? userProfile.sub.trim() : '';
+
     el.pdfPrintableContent.innerHTML = `
       <div class="pdf-doc-header">
         <div class="pdf-doc-brand">
@@ -1374,6 +1430,8 @@
         </div>
         <div class="pdf-doc-meta">
           <div class="pdf-doc-month">${monthName} ${yearBE}</div>
+          ${userName ? `<div class="pdf-doc-author"><i class="fa-solid fa-user-graduate"></i> <strong>ผู้จัดทำ:</strong> ${escapeHtml(userName)}</div>` : ''}
+          ${userSub ? `<div class="pdf-doc-sub">${escapeHtml(userSub)}</div>` : ''}
           <div class="pdf-doc-generated">พิมพ์เมื่อ: ${nowStr}</div>
         </div>
       </div>
@@ -1435,6 +1493,14 @@
         </tbody>
       </table>
 
+      <div class="pdf-signature-section">
+        <div class="pdf-sign-box">
+          <div class="pdf-sign-line">ลงชื่อ ........................................................... ผู้ขอรับการสนับสนุน / ผู้เบิกจ่าย</div>
+          <div class="pdf-sign-name">(${escapeHtml(userName || '...........................................................')})</div>
+          <div class="pdf-sign-date">วันที่ ........ เดือน ........................ พ.ศ. ................</div>
+        </div>
+      </div>
+
       <div class="pdf-doc-footer">
         <span>GoToSchool App • บันทึกค่าเดินทางไปมหาวิทยาลัย</span>
         <span>หน้า 1 / 1</span>
@@ -1447,28 +1513,78 @@
     const selectedYearBE = Number(el.summaryYearSelect.value);
     const monthName = THAI_MONTHS_FULL[selectedMonth - 1];
 
-    const element = document.getElementById('pdfPrintableContent');
-    if (!element) return;
+    const sourceEl = document.getElementById('pdfPrintableContent');
+    if (!sourceEl) return;
 
     if (typeof html2pdf === 'undefined') {
       window.print();
       return;
     }
 
+    const userProfile = loadUserProfile();
+    const safeName = (userProfile && userProfile.name)
+      ? userProfile.name.trim().replace(/[\\/:*?"<>|]/g, '_') + '_'
+      : '';
+
     showToast('กำลังประมวลผลและสร้างไฟล์ PDF...', 'info');
+
+    // Create a dedicated off-screen container with fixed A4 desktop width (794px)
+    // to ensure html2canvas never suffers from parent scroll or mobile container clipping!
+    const printContainer = document.createElement('div');
+    printContainer.style.position = 'fixed';
+    printContainer.style.left = '0';
+    printContainer.style.top = '0';
+    printContainer.style.width = '794px';
+    printContainer.style.zIndex = '-99999';
+    printContainer.style.background = '#ffffff';
+    printContainer.style.overflow = 'visible';
+
+    const clonedEl = sourceEl.cloneNode(true);
+    clonedEl.style.width = '794px';
+    clonedEl.style.minWidth = '794px';
+    clonedEl.style.maxWidth = '794px';
+    clonedEl.style.margin = '0';
+    clonedEl.style.padding = '24px 24px';
+    clonedEl.style.boxSizing = 'border-box';
+    clonedEl.style.boxShadow = 'none';
+    clonedEl.style.background = '#ffffff';
+
+    printContainer.appendChild(clonedEl);
+    document.body.appendChild(printContainer);
 
     const opt = {
       margin: [6, 6, 6, 6],
-      filename: `GoToSchool_รายงานค่าเดินทาง_${monthName}_${selectedYearBE}.pdf`,
+      filename: `GoToSchool_รายงานค่าเดินทาง_${safeName}${monthName}_${selectedYearBE}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, letterRendering: true, logging: false },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      html2canvas: { 
+        scale: 2, 
+        useCORS: true, 
+        letterRendering: true, 
+        logging: false,
+        width: 794,
+        windowWidth: 794,
+        x: 0,
+        y: 0,
+        scrollX: 0,
+        scrollY: 0
+      },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { 
+        mode: ['css', 'legacy'], 
+        avoid: ['tr', '.pdf-stat-card', '.pdf-stats-row', '.pdf-section-title', '.pdf-doc-header', '.pdf-doc-footer', '.pdf-signature-section'] 
+      }
     };
 
-    html2pdf().set(opt).from(element).save().then(() => {
+    html2pdf().set(opt).from(clonedEl).save().then(() => {
+      if (document.body.contains(printContainer)) {
+        document.body.removeChild(printContainer);
+      }
       showToast('ดาวน์โหลดไฟล์ PDF สำเร็จแล้ว!', 'success');
     }).catch(err => {
       console.error('PDF generation error:', err);
+      if (document.body.contains(printContainer)) {
+        document.body.removeChild(printContainer);
+      }
       window.print();
     });
   }
@@ -1491,8 +1607,18 @@
       return;
     }
 
+    const userProfile = loadUserProfile();
+    const safeName = (userProfile && userProfile.name)
+      ? userProfile.name.trim().replace(/[\\/:*?"<>|]/g, '_') + '_'
+      : '';
+
     // CSV Headers
     let csvContent = '\uFEFF'; // UTF-8 BOM for Excel
+    if (userProfile && userProfile.name) {
+      csvContent += `# รายงานสรุปค่าใช้จ่ายการเดินทาง GoToSchool\n`;
+      csvContent += `# ผู้จัดทำ: ${userProfile.name} ${userProfile.sub ? `(${userProfile.sub})` : ''}\n`;
+      csvContent += `# ประจำเดือน: ${THAI_MONTHS_FULL[selectedMonth - 1]} ${selectedYearBE}\n\n`;
+    }
     csvContent += 'วันที่,วัน,เดือน,ปี พ.ศ.,ทิศทาง,ประเภทการเดินทาง,ราคาค่าโดยสาร (บาท),หมายเหตุ\n';
 
     monthEntries.forEach(e => {
@@ -1506,7 +1632,7 @@
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `GoToSchool_Travel_Fare_${THAI_MONTHS_FULL[selectedMonth - 1]}_${selectedYearBE}.csv`);
+    link.setAttribute('download', `GoToSchool_รายงานค่าเดินทาง_${safeName}${THAI_MONTHS_FULL[selectedMonth - 1]}_${selectedYearBE}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1858,7 +1984,175 @@
       if (e.target === el.calendarSheetModal) closeCalendarSheet();
       if (e.target === el.pdfReportModal) closePdfReportModal();
       if (e.target === el.duplicateModal) closeDuplicateModal();
+      if (e.target === el.userProfileModal) closeUserProfileModal();
+      if (e.target === el.clearMonthConfirmModal) closeClearMonthConfirmModal();
     });
+
+    // User Profile Controls
+    if (el.btnUserProfile) el.btnUserProfile.addEventListener('click', openUserProfileModal);
+    if (el.btnCloseUserProfile) el.btnCloseUserProfile.addEventListener('click', closeUserProfileModal);
+    if (el.btnCancelUserProfile) el.btnCancelUserProfile.addEventListener('click', closeUserProfileModal);
+    if (el.userProfileForm) el.userProfileForm.addEventListener('submit', handleUserProfileSubmit);
+
+    // Clear Month Controls
+    if (el.btnClearMonthSummary) el.btnClearMonthSummary.addEventListener('click', () => openClearMonthConfirmModal());
+    if (el.btnClearMonthHistory) el.btnClearMonthHistory.addEventListener('click', () => openClearMonthConfirmModal());
+    if (el.btnCloseClearMonthModal) el.btnCloseClearMonthModal.addEventListener('click', closeClearMonthConfirmModal);
+    if (el.btnCancelClearMonth) el.btnCancelClearMonth.addEventListener('click', closeClearMonthConfirmModal);
+    if (el.btnConfirmDeleteMonth) el.btnConfirmDeleteMonth.addEventListener('click', executeClearCurrentMonth);
+
+    // PDF Live Author Listeners
+    setupPdfAuthorListeners();
+  }
+
+  // --- User Profile Functions ---
+  function loadUserProfile() {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.USER_PROFILE);
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (parsed && typeof parsed === 'object') {
+          return {
+            name: parsed.name || '',
+            sub: parsed.sub || ''
+          };
+        }
+      }
+    } catch (err) {
+      console.error('Error loading user profile:', err);
+    }
+    return { name: '', sub: '' };
+  }
+
+  function saveUserProfile(profile) {
+    try {
+      localStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(profile));
+      return true;
+    } catch (err) {
+      console.error('Error saving user profile:', err);
+      return false;
+    }
+  }
+
+  function openUserProfileModal() {
+    const profile = loadUserProfile();
+    if (el.profileUserNameInput) el.profileUserNameInput.value = profile.name || '';
+    if (el.profileUserSubInput) el.profileUserSubInput.value = profile.sub || '';
+    if (el.userProfileModal) el.userProfileModal.style.display = 'flex';
+  }
+
+  function closeUserProfileModal() {
+    if (el.userProfileModal) el.userProfileModal.style.display = 'none';
+  }
+
+  function handleUserProfileSubmit(e) {
+    e.preventDefault();
+    const name = el.profileUserNameInput ? el.profileUserNameInput.value.trim() : '';
+    const sub = el.profileUserSubInput ? el.profileUserSubInput.value.trim() : '';
+
+    if (!name) {
+      showToast('กรุณากรอกชื่อ-นามสกุล', 'warning');
+      if (el.profileUserNameInput) el.profileUserNameInput.focus();
+      return;
+    }
+
+    saveUserProfile({ name, sub });
+    closeUserProfileModal();
+    showToast('บันทึกข้อมูลผู้จัดทำเรียบร้อยแล้ว!', 'success');
+
+    if (el.pdfAuthorNameInput) el.pdfAuthorNameInput.value = name;
+    if (el.pdfAuthorSubInput) el.pdfAuthorSubInput.value = sub;
+  }
+
+  function setupPdfAuthorListeners() {
+    function updateAndSave(notify = false) {
+      const name = el.pdfAuthorNameInput ? el.pdfAuthorNameInput.value.trim() : '';
+      const sub = el.pdfAuthorSubInput ? el.pdfAuthorSubInput.value.trim() : '';
+      saveUserProfile({ name, sub });
+
+      const selectedMonth = Number(el.summaryMonthSelect.value);
+      const selectedYearBE = Number(el.summaryYearSelect.value);
+      renderPdfReportContent(selectedMonth, selectedYearBE);
+
+      if (el.profileUserNameInput) el.profileUserNameInput.value = name;
+      if (el.profileUserSubInput) el.profileUserSubInput.value = sub;
+
+      if (notify) {
+        showToast('บันทึกชื่อผู้จัดทำเรียบร้อยแล้ว!', 'success');
+      }
+    }
+
+    if (el.pdfAuthorNameInput) {
+      el.pdfAuthorNameInput.addEventListener('input', () => updateAndSave(false));
+    }
+    if (el.pdfAuthorSubInput) {
+      el.pdfAuthorSubInput.addEventListener('input', () => updateAndSave(false));
+    }
+    if (el.btnSavePdfAuthor) {
+      el.btnSavePdfAuthor.addEventListener('click', () => updateAndSave(true));
+    }
+  }
+
+  // --- Clear Month Functions ---
+  let pendingClearMonth = null;
+  let pendingClearYearBE = null;
+
+  function openClearMonthConfirmModal(month, yearBE) {
+    const targetMonth = Number(month || el.summaryMonthSelect.value || summarySelectedMonth);
+    const targetYear = Number(yearBE || el.summaryYearSelect.value || summarySelectedYearBE);
+
+    const monthEntries = entries.filter(e => 
+      Number(e.month) === targetMonth && 
+      Number(e.yearBE) === targetYear
+    );
+
+    if (monthEntries.length === 0) {
+      showToast(`ไม่มีรายการเดินทางในเดือน ${THAI_MONTHS_FULL[targetMonth - 1]} ${targetYear} ให้ลบ`, 'info');
+      return;
+    }
+
+    pendingClearMonth = targetMonth;
+    pendingClearYearBE = targetYear;
+
+    const totalAmt = monthEntries.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+
+    if (el.clearMonthTargetName) el.clearMonthTargetName.textContent = `${THAI_MONTHS_FULL[targetMonth - 1]} ${targetYear}`;
+    if (el.clearMonthTargetCount) el.clearMonthTargetCount.textContent = `${monthEntries.length} รายการ`;
+    if (el.clearMonthTargetTotal) el.clearMonthTargetTotal.textContent = `฿${totalAmt.toLocaleString('th-TH')}`;
+
+    if (el.clearMonthConfirmModal) el.clearMonthConfirmModal.style.display = 'flex';
+  }
+
+  function closeClearMonthConfirmModal() {
+    if (el.clearMonthConfirmModal) el.clearMonthConfirmModal.style.display = 'none';
+    pendingClearMonth = null;
+    pendingClearYearBE = null;
+  }
+
+  function executeClearCurrentMonth() {
+    if (!pendingClearMonth || !pendingClearYearBE) return;
+
+    const targetMonth = pendingClearMonth;
+    const targetYear = pendingClearYearBE;
+    const monthName = THAI_MONTHS_FULL[targetMonth - 1];
+
+    const prevCount = entries.length;
+    entries = entries.filter(e => !(Number(e.month) === targetMonth && Number(e.yearBE) === targetYear));
+    const deletedCount = prevCount - entries.length;
+
+    saveEntriesToStorage();
+    closeClearMonthConfirmModal();
+
+    // Re-render UI
+    syncUIWithSelectedDate();
+    renderSummaryTab();
+    renderHistoryTab();
+    renderDailyEntries();
+    updateBannerStats();
+    buildSwiperDays();
+    updateNavBadge();
+
+    showToast(`ลบรายการทั้งหมดของเดือน ${monthName} ${targetYear} เรียบร้อยแล้ว (ลบออก ${deletedCount} รายการ)`, 'success');
   }
 
   // Expose global methods for inline HTML onclick handlers
@@ -1871,7 +2165,9 @@
     printPDF,
     generateReturnTripsFromDepart,
     copyTripsFromPreviousDay,
-    repeatLastTrip
+    repeatLastTrip,
+    openUserProfileModal,
+    openClearMonthConfirmModal
   };
 
   // Launch on DOM ready

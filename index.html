@@ -35,6 +35,9 @@
           </div>
         </div>
         <div class="header-actions">
+          <button id="btnUserProfile" class="icon-btn" title="บันทึกชื่อผู้จัดทำ / นักศึกษา" aria-label="ชื่อผู้จัดทำ">
+            <i class="fa-solid fa-user-graduate"></i>
+          </button>
           <button id="btnBackup" class="icon-btn" title="สำรอง/กู้คืนข้อมูล" aria-label="สำรอง/กู้คืนข้อมูล">
             <i class="fa-solid fa-cloud-arrow-down"></i>
           </button>
@@ -307,21 +310,21 @@
             <span class="quick-repeat-title"><i class="fa-solid fa-wand-magic-sparkles text-primary"></i> ตัวช่วยทำซ้ำลดการกดหลายรอบ</span>
           </div>
           <div class="quick-repeat-grid">
-            <button type="button" class="btn-repeat-action" id="btnGenReturnFromDepart" title="สร้างขากลับจากขาไปทั้งหมดของวันนี้อัตโนมัติ">
+            <button type="button" class="btn-repeat-action" id="btnGenReturnFromDepart" onclick="window.gtsApp.generateReturnTripsFromDepart()" title="สร้างขากลับจากขาไปทั้งหมดของวันนี้อัตโนมัติ">
               <div class="repeat-icon-wrap"><i class="fa-solid fa-arrows-rotate"></i></div>
               <div class="repeat-text-wrap">
                 <strong>สร้างขากลับจากขาไป</strong>
                 <small>คัดลอกขาไปเป็นขากลับทันที</small>
               </div>
             </button>
-            <button type="button" class="btn-repeat-action" id="btnCopyPrevDay" title="คัดลอกรายการเดินทางจากวันก่อนหน้ามาใส่วันนี้">
+            <button type="button" class="btn-repeat-action" id="btnCopyPrevDay" onclick="window.gtsApp.copyTripsFromPreviousDay()" title="คัดลอกรายการเดินทางจากวันก่อนหน้ามาใส่วันนี้">
               <div class="repeat-icon-wrap"><i class="fa-solid fa-paste"></i></div>
               <div class="repeat-text-wrap">
                 <strong>คัดลอกจากวันก่อน</strong>
                 <small>ดึงรายการวันที่แล้วมาใส่วันนี้</small>
               </div>
             </button>
-            <button type="button" class="btn-repeat-action" id="btnRepeatLast" title="ทำซ้ำรายการล่าสุดที่เคยบันทึก">
+            <button type="button" class="btn-repeat-action" id="btnRepeatLast" onclick="window.gtsApp.repeatLastTrip()" title="ทำซ้ำรายการล่าสุดที่เคยบันทึก">
               <div class="repeat-icon-wrap"><i class="fa-solid fa-bolt"></i></div>
               <div class="repeat-text-wrap">
                 <strong>ทำซ้ำรายการล่าสุด</strong>
@@ -455,9 +458,14 @@
               <i class="fa-solid fa-chart-simple header-icon"></i>
               <span class="card-title">แยกตามประเภทการเดินทาง</span>
             </div>
-            <button type="button" class="btn-pill-action" id="btnSummaryExportPDF" title="ส่งออกรายงาน PDF">
-              <i class="fa-solid fa-file-pdf"></i> สรุป PDF
-            </button>
+            <div class="header-actions-group">
+              <button type="button" class="btn-pill-action" id="btnSummaryExportPDF" title="ส่งออกรายงาน PDF">
+                <i class="fa-solid fa-file-pdf"></i> สรุป PDF
+              </button>
+              <button type="button" class="btn-pill-action btn-pill-danger" id="btnClearMonthSummary" title="ลบข้อมูลทั้งหมดของเดือนนี้">
+                <i class="fa-solid fa-trash-can"></i> ลบเดือนนี้
+              </button>
+            </div>
           </div>
           <div id="transportBreakdownList" class="breakdown-list">
             <!-- Populated by JS -->
@@ -478,6 +486,9 @@
             </button>
             <button type="button" class="btn-outline-sm" id="btnExportCSV" title="ดาวน์โหลดเป็นไฟล์ Excel/CSV">
               <i class="fa-solid fa-file-csv"></i> ส่งออก CSV
+            </button>
+            <button type="button" class="btn-outline-sm btn-danger-action" id="btnClearMonthHistory" title="ลบข้อมูลทั้งหมดของเดือนนี้">
+              <i class="fa-solid fa-trash-can"></i> ลบเดือนนี้
             </button>
           </div>
         </div>
@@ -654,6 +665,23 @@
         <button type="button" class="modal-close-btn" id="btnClosePdfModal">&times;</button>
       </div>
       <div class="pdf-modal-body">
+        <!-- Author info setting bar inside PDF modal -->
+        <div class="pdf-author-panel">
+          <div class="pdf-author-inputs">
+            <div class="input-with-icon">
+              <i class="fa-solid fa-user"></i>
+              <input type="text" id="pdfAuthorNameInput" class="form-input-sm" placeholder="ชื่อ-นามสกุล ผู้จัดทำ (เช่น นายสมชาย ใจดี)">
+            </div>
+            <div class="input-with-icon">
+              <i class="fa-solid fa-id-card"></i>
+              <input type="text" id="pdfAuthorSubInput" class="form-input-sm" placeholder="รหัสนักศึกษา / สถาบัน (ถ้ามี)">
+            </div>
+          </div>
+          <button type="button" class="btn-primary-sm" id="btnSavePdfAuthor" title="บันทึกชื่อนี้ไว้ใช้ตลอดไป">
+            <i class="fa-solid fa-floppy-disk"></i> บันทึกชื่อ
+          </button>
+        </div>
+
         <div class="pdf-modal-toolbar">
           <div class="pdf-toolbar-hint">
             <i class="fa-solid fa-circle-check text-success"></i> สามารถดาวน์โหลดเป็นไฟล์ .PDF หรือสั่งพิมพ์รายงานได้ทันที
@@ -713,6 +741,75 @@
               <strong>ทำซ้ำไปใส่วันที่เลือกปัจจุบัน (<span id="dupTargetDateLabel">--</span>)</strong>
               <small>คัดลอกรายการนี้ไปบันทึกในวันที่กำลังเปิดอยู่</small>
             </div>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- User Profile Modal (Student / Author Info) -->
+  <div class="modal-backdrop" id="userProfileModal" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-user-graduate text-primary"></i> ข้อมูลผู้จัดทำ / นักศึกษา</h3>
+        <button type="button" class="modal-close-btn" id="btnCloseUserProfile">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc-tip">
+          <i class="fa-solid fa-circle-info text-primary"></i>
+          <span>บันทึกชื่อ-นามสกุลของคุณไว้เพียงครั้งเดียว ระบบจะจำไว้และนำไปใส่ในหัวเอกสาร PDF และไฟล์ Excel โดยอัตโนมัติ</span>
+        </p>
+
+        <form id="userProfileForm" style="display: flex; flex-direction: column; gap: 14px; margin-top: 10px;">
+          <div class="modal-form-group">
+            <label for="profileUserNameInput">ชื่อ-นามสกุล ผู้ขอเบิกจ่าย / ผู้จัดทำ <span style="color: var(--danger);">*</span></label>
+            <div class="input-with-icon">
+              <i class="fa-solid fa-user"></i>
+              <input type="text" id="profileUserNameInput" class="form-input" placeholder="เช่น นายสมชาย ใจดี" required>
+            </div>
+          </div>
+
+          <div class="modal-form-group">
+            <label for="profileUserSubInput">รหัสนักศึกษา / คณะ / มหาวิทยาลัย (ถ้ามี)</label>
+            <div class="input-with-icon">
+              <i class="fa-solid fa-id-card"></i>
+              <input type="text" id="profileUserSubInput" class="form-input" placeholder="เช่น รหัส 66012345 คณะวิศวกรรมศาสตร์">
+            </div>
+          </div>
+
+          <div class="modal-actions-row" style="margin-top: 10px;">
+            <button type="button" class="btn-secondary" id="btnCancelUserProfile">ยกเลิก</button>
+            <button type="submit" class="btn-primary">
+              <i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูล
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Clear Month Confirmation Modal -->
+  <div class="modal-backdrop" id="clearMonthConfirmModal" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 style="color: var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> ยืนยันการลบข้อมูลเดือนนี้</h3>
+        <button type="button" class="modal-close-btn" id="btnCloseClearMonthModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="clear-month-warning-box">
+          <p>คุณกำลังจะลบรายการเดินทางทั้งหมดในเดือน <strong id="clearMonthTargetName">--</strong></p>
+          <div class="clear-month-stats">
+            <span>รายการที่จะถูกลบ: <strong id="clearMonthTargetCount">0 รายการ</strong></span>
+            <span>ยอดเงินรวม: <strong id="clearMonthTargetTotal">฿0</strong></span>
+          </div>
+          <p class="text-muted-sm">
+            <i class="fa-solid fa-circle-info"></i> ข้อมูลในเดือนอื่นจะไม่ได้รับผลกระทบ หากลบแล้วจะไม่สามารถกู้คืนได้ แนะนำให้ดาวน์โหลด PDF หรือส่งออก CSV เพื่อสำรองข้อมูลไว้ก่อน
+          </p>
+        </div>
+        <div class="modal-actions-row">
+          <button type="button" class="btn-secondary" id="btnCancelClearMonth">ยกเลิก</button>
+          <button type="button" class="btn-danger" id="btnConfirmDeleteMonth">
+            <i class="fa-solid fa-trash-can"></i> ยืนยันลบทั้งหมดในเดือนนี้
           </button>
         </div>
       </div>
