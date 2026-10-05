@@ -991,13 +991,23 @@
   function generateReturnTripsFromDepart() {
     const dayEntries = getSelectedDateEntries();
     const departEntries = dayEntries.filter(e => e.direction === 'depart');
+    const existingReturnEntries = dayEntries.filter(e => e.direction === 'return');
 
     if (departEntries.length === 0) {
       showToast('ยังไม่มีรายการขาไปของวันนี้สำหรับสร้างขากลับ', 'warning');
       return;
     }
 
-    // Invert sequence for realistic return commute
+    if (existingReturnEntries.length > 0) {
+      const confirmReplace = confirm(`วันนี้มีรายการขากลับอยู่แล้ว ${existingReturnEntries.length} รายการ\nต้องการลบรายการขากลับเดิมของวันนี้แล้วสร้างชุดใหม่ตามขาไปหรือไม่?`);
+      if (!confirmReplace) return;
+
+      // Remove previous return entries for this specific date
+      const returnIds = new Set(existingReturnEntries.map(e => e.id));
+      entries = entries.filter(e => !returnIds.has(e.id));
+    }
+
+    // Invert sequence for realistic return commute (e.g. Leg 1 -> Leg 2 becomes Leg 2 -> Leg 1)
     const reversedDepart = [...departEntries].reverse();
     const newReturnEntries = reversedDepart.map((dep, index) => {
       let returnNote = dep.note || '';
@@ -1068,7 +1078,7 @@
         );
         sourceDateText = `วันที่ ${top.day} ${THAI_MONTHS_FULL[top.month - 1]} ${top.yearBE}`;
       } else {
-        // 3. Fallback: Find the most recent active day across the entire history (excluding current day)
+        // 3. Fallback: Find the most recent active day strictly different from current date
         const otherDays = [...entries].filter(e => 
           !(Number(e.yearBE) === curYear && Number(e.month) === curMonth && Number(e.day) === curDay)
         ).sort((a, b) => {
@@ -1085,22 +1095,19 @@
             Number(e.day) === Number(top.day)
           );
           sourceDateText = `วันที่ ${top.day} ${THAI_MONTHS_FULL[top.month - 1]} ${top.yearBE}`;
-        } else if (entries.length > 0) {
-          // 4. If all entries are on current day, duplicate them
-          const top = entries[0];
-          sourceEntries = entries.filter(e => 
-            Number(e.yearBE) === Number(top.yearBE) && 
-            Number(e.month) === Number(top.month) && 
-            Number(e.day) === Number(top.day)
-          );
-          sourceDateText = `วันที่ ${top.day} ${THAI_MONTHS_FULL[top.month - 1]}`;
         }
       }
     }
 
     if (sourceEntries.length === 0) {
-      showToast('ยังไม่มีประวัติการเดินทางที่จะคัดลอก กรุณาบันทึกรายการก่อนหน้าอย่างน้อย 1 รายการ', 'warning');
+      showToast('ไม่พบประวัติการเดินทางของวันอื่นที่จะคัดลอก', 'warning');
       return;
+    }
+
+    const currentDayEntries = getSelectedDateEntries();
+    if (currentDayEntries.length > 0) {
+      const confirmCopy = confirm(`วันนี้มีรายการบันทึกอยู่แล้ว ${currentDayEntries.length} รายการ\nต้องการคัดลอก ${sourceEntries.length} รายการจาก (${sourceDateText}) มาเพิ่มต่อท้ายหรือไม่?`);
+      if (!confirmCopy) return;
     }
 
     const cloned = sourceEntries.map((src, idx) => ({
@@ -1153,7 +1160,8 @@
     renderSummaryTab();
     renderHistoryTab();
 
-    showToast(`ทำซ้ำรายการ "${last.transportType}" ฿${last.amount} ในวันที่เลือกแล้ว!`, 'success');
+    const dirText = last.direction === 'depart' ? 'ขาไป' : 'ขากลับ';
+    showToast(`ทำซ้ำรายการ "${last.transportType}" (${dirText}) ฿${last.amount} ในวันที่เลือกแล้ว!`, 'success');
   }
 
   // Duplicate Item Modal Logic
@@ -1492,14 +1500,6 @@
           </tr>
         </tbody>
       </table>
-
-      <div class="pdf-signature-section">
-        <div class="pdf-sign-box">
-          <div class="pdf-sign-line">ลงชื่อ ........................................................... ผู้ขอรับการสนับสนุน / ผู้เบิกจ่าย</div>
-          <div class="pdf-sign-name">(${escapeHtml(userName || '...........................................................')})</div>
-          <div class="pdf-sign-date">วันที่ ........ เดือน ........................ พ.ศ. ................</div>
-        </div>
-      </div>
 
       <div class="pdf-doc-footer">
         <span>GoToSchool App • บันทึกค่าเดินทางไปมหาวิทยาลัย</span>

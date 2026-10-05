@@ -4,6 +4,7 @@
    ========================================================= */
 
 :root {
+  color-scheme: light;
   /* Color Palette - Light Mode Default */
   --primary: #4f46e5;
   --primary-hover: #4338ca;
@@ -53,6 +54,7 @@
 
 /* Dark Mode Theme */
 [data-theme="dark"] {
+  color-scheme: dark;
   --primary: #6366f1;
   --primary-hover: #4f46e5;
   --primary-light: rgba(99, 102, 241, 0.15);
@@ -88,6 +90,20 @@
   margin: 0;
   padding: 0;
   -webkit-tap-highlight-color: transparent;
+}
+
+select {
+  color-scheme: light dark;
+}
+
+[data-theme="dark"] select {
+  color-scheme: dark;
+}
+
+select option,
+select optgroup {
+  background-color: var(--bg-card);
+  color: var(--text-main);
 }
 
 body {
@@ -449,6 +465,11 @@ body {
   outline: none;
   cursor: pointer;
   padding: 2px 0;
+}
+
+.sticky-inline-select option {
+  background-color: var(--bg-card);
+  color: var(--text-main);
 }
 
 .sticky-inline-select.year-select {
